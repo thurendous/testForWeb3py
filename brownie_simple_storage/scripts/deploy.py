@@ -1,5 +1,5 @@
 # import accounts to manage accounts
-from brownie import accounts, config, SimpleStorage
+from brownie import accounts, config, SimpleStorage, network
 import os
 
 
@@ -9,7 +9,7 @@ def deploy_simple_storage():
     # ---get account from the brownie encrypted account
     # account = accounts.load("freecodecamp-account")
     # ---get account from .env
-    account = accounts.add(config["wallets"]["from_key"])
+    account = get_account()
     print(account)
     simple_storage = SimpleStorage.deploy({"from": account})
     print(simple_storage)
@@ -20,8 +20,14 @@ def deploy_simple_storage():
     transaction.wait(1)
     updated_stored_value = simple_storage.retrieve()
     print(updated_stored_value)
-    pass
+    print(network.gas_price())
 
+
+def get_account():
+    if(network.show_active() == "development"):
+        return accounts[0]
+    else:
+        return accounts.add(config["wallets"]["from_key"])
 
 # brownie do the sutff behind the scene
 # 1. compile the contract
