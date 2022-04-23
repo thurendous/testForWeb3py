@@ -9,8 +9,7 @@ import binascii
 # create a /.env file to loadenv
 from dotenv import load_dotenv
 load_dotenv() # load env file 
-
-
+# private_key = os.getenv('PRIVATE_KEY')
 
 # get addresses from the setting.py
 my_address = setting.my_address
@@ -23,24 +22,25 @@ with open("./SimpleStorage.sol", "r") as file:
 
 install_solc("0.6.0")
 
+# compile the contract for us using solcx. see more in the solcx doc
 compiled_sol = compile_standard(
     {
         "language": "Solidity",
         "sources": {"SimpleStorage.sol": {"content": simple_storage_file}},
         "settings": {
             "outputSelection": {
-                "*": {"*": ["abi", "metadata", "evm.bytecode"]},
+                "*": {
+                    "*": ["abi", "metadata", "evm.bytecode"]
+                },
             }
         },
     },
     solc_version="0.6.0",
 )
 
-print("compiled_sol file: ",compiled_sol)
-
+# print("compiled_sol file: ",compiled_sol)
 with open("compiled_code.json", "w") as file: 
     json.dump(compiled_sol, file)
-
 
 # get bytecode 
 bytecode = compiled_sol["contracts"]["SimpleStorage.sol"]["SimpleStorage"]["evm"]["bytecode"]["object"]
@@ -49,12 +49,12 @@ bytecode = compiled_sol["contracts"]["SimpleStorage.sol"]["SimpleStorage"]["evm"
 abi = compiled_sol["contracts"]["SimpleStorage.sol"]["SimpleStorage"]["abi"]
 
 # print("ABIIII",abi)
-print(my_address)
+print("address: ", my_address)
 
 # connect to blockchain
+# connect to localhost if you set the value of HTTPProvider and chain_id as localhost
 w3 = Web3(Web3.HTTPProvider(setting.URL))
 chain_id = 4
-
 
 # create the contract in python 
 SimpleStorage = w3.eth.contract(abi=abi, bytecode=bytecode)
@@ -63,15 +63,16 @@ SimpleStorage = w3.eth.contract(abi=abi, bytecode=bytecode)
 
 # get ehtereum nonce increases 1 by 1
 nonce = w3.eth.getTransactionCount(setting.my_address)
-print(nonce)
+print("nonce: ", nonce)
 
 # build a transaction -> sign a transaction -> send a transaction
 transaction = SimpleStorage.constructor().buildTransaction({"chainId": chain_id, "gasPrice": w3.eth.gas_price+500000022, "from": my_address, "nonce": nonce})
 
-print(transaction)
+print("Transaction: ", transaction)
 
 signed_txn = w3.eth.account.sign_transaction(transaction, private_key=private_key)
-print(signed_txn)
+print("-----------------")
+print("Signed tx: ",  signed_txn)
 
 # private_key = os.getenv("PRIVATE_KEY")
 # private_key2 = os.getenv("SOME_OTHER_VAR")
@@ -79,13 +80,15 @@ print(signed_txn)
 # print(private_key2)
 
 # send the signed transaction
-print("deploying contracts")
+print("----------------- deploying contracts")
 tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
 
 # use this to decode
-print("tx hash", binascii.b2a_hex(tx_hash).decode("utf-8"))
+print("tx hash original: ", tx_hash)
+print("tx hash: ", binascii.b2a_hex(tx_hash).decode("utf-8"))
+# wait for the block confirmation to happen
 tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-print("deployed")
+print("----------------- deployed")
 
 # working with the contract
 # contract Address and contract ABI
@@ -101,16 +104,17 @@ print(simple_storage.functions.retrieve().call())
 
 # send a transaction to change the blockchain state 
 # 1st, we build the transaction
-# 2nd, we sign the transaction
-# 3rd, we send the transaction and wait for it to finish
-print("updating the state!")
+print("----------------- updating the state!")
 store_transaction = simple_storage.functions.store(161).buildTransaction(
     {"chainId": chain_id, "from": my_address, "gasPrice":w3.eth.gas_price+500000022, "nonce": nonce+1 }
 )
+
+# 2nd, we sign the transaction
 signed_store_txn = w3.eth.account.sign_transaction(store_transaction, private_key=private_key)
+
+# 3rd, we send the transaction and wait for it to finish
 tx_hash = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
 tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-print("updated the state!")
-
+print("----------------- the state is updated!")
 
 print(simple_storage.functions.retrieve().call())
